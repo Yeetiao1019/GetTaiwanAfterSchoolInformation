@@ -19,8 +19,8 @@ hrefUrl = 'https://bsb.kh.edu.tw/afterschool/register/'
 def get_page_num(url):
     req = requests.get(url)
     bs = BeautifulSoup(req.text, "lxml")
-    results = bs.find_all("font",{"color":"#D00000"})
-    pageCount = int(results[1].text)
+    results = bs.find("select",{"name":"jump"}).findAll('option')
+    pageCount = int(len(results))
     return pageCount
 
 
@@ -52,30 +52,36 @@ def get_president_and_contactphone(article_url):
     req = requests.get(article_url)
     bs = BeautifulSoup(req.text, "lxml")
     results = bs.select('tr > td.listBody')     
-    if results:
-        idList.append(results[0].text)                 #電話
+    if results and len(results) > 23:                  #大於23是避免有測試資料導致陣列長度不夠
+        idList.append(results[0].text)                 #補習班代碼
         contactPhoneList.append(results[7].text)       #電話
-        presidentList.append(results[24].text)         #24:負責人 25:設立人 26:班主任
+        presidentList.append(results[24].text + "/" + results[26].text)         #24:負責人 25:設立人 26:班主任
 
 req = requests.get(url)
-bs = BeautifulSoup(req.text,"lxml")
+bs = BeautifulSoup(req.text,"lxml") 
+cityCount = 0
 totalHref = bs.select('td.statisticBody > a')       #合計超連結
 tagLen = len(totalHref)
-up_page_href = totalHref[tagLen - 1]['href']   #取總計的超連結
-next_page_url = hrefUrl + up_page_href
-url = next_page_url + "&range=1" + '&citylink=20'       #range=1是讓頁面的共..筆顯示正常，citylink=20是讓資料從台北市開始排序
-pageCount = get_page_num(url = url)
-if pageCount > 0:
-    for pageNum in range(1, pageCount):
-        get_address_president_contactphone(url = url)
-        get_afterschool_name(url = url)
-        url = url.replace("pageno=" + str(pageNum) , "pageno=" + str(pageNum + 1))
-        print("目前正在撈取第 " + str(pageNum) + " 頁，共有 " + str(pageCount) + " 頁")
+for pageUrl in range(tagLen - 1):                    #不取最後總計的超連結
+    if(pageUrl % 15 == 14):
+        up_page_href = totalHref[pageUrl]['href']  
+        next_page_url = hrefUrl + up_page_href
+        url = next_page_url + "&range=1"          #range=1是讓頁面的共..筆顯示正常
+        pageCount = get_page_num(url = url)
+        cityname = bs.select('td.statisticCenter')[cityCount].text
+        cityCount = cityCount + 1
+        if pageCount > 0:    
+            for pageNum in range(1, pageCount + 1):
+                print("目前正在撈取 " + cityname +" 第 " + str(pageNum) + " 頁，共有 " + str(pageCount) + " 頁")
+                get_address_president_contactphone(url = url)
+                get_afterschool_name(url = url)
+                url = url.replace("pageno=" + str(pageNum) , "pageno=" + str(pageNum +1))      
 
 
 from yattag import Doc
 from yattag import indent
 
+# 做成網頁
 doc, tag, text = Doc().tagtext()
 print("正在處理HTML...")
 doc.asis('<!DOCTYPE html>')
@@ -101,10 +107,10 @@ with tag('html'):
                     with tag("th"):
                         text("班址")
                     with tag("th"):
-                        text("負責人")
+                        text("負責人/班主任")
                     with tag("th"):
                         text("電話")
-                for id, name, address, president, contactPhone  in zip(idList, addressList, nameList, presidentList, contactPhoneList):
+                for id, name, address, president, contactPhone  in zip(idList, nameList, addressList, presidentList, contactPhoneList):
                     with tag("tr"):
                         with tag("td"):
                             text(id)     #放補習班代碼
@@ -119,4 +125,21 @@ with tag('html'):
                         
 with open("web_crawler.html", "wt") as code:
     code.write(indent(doc.getvalue()))
-    print("全部處理完成！" )
+    print("HTML處理完成！" )
+
+import csv
+
+# 開啟輸出的 CSV 檔
+with open('補習班名單.csv', 'w', newline='', encoding='utf-8-sig') as csvfile:
+    # 建立 CSV 檔寫入器
+    writer = csv.writer(csvfile)
+
+    # 建立標題列
+    writer.writerow(['補習班代碼','補習班名稱','地址','負責人/班主任','補習班聯絡電話'])
+
+    # 寫入爬回來的資料
+    for id, name, address, president, contactPhone  in zip(idList, nameList, addressList, presidentList, contactPhoneList):
+        writer.writerow([id,name,address,president,contactPhone])
+
+    print("CSV處理完成！" )
+print("程式結束" )
