@@ -38,22 +38,22 @@ def get_layer2_data_layer3_url(url, cityname):      #第二層的資料與第三
             if(i % 7 == 1):
                 if(results[i+1].text.strip() != ''):        #用地址的有無來判斷補習班資料是否完整
                     if(results[i].text.strip() != ''):
-                        cityList.append(cityname)
-                        name = results[i].text
-                        nameList.append(name)
+                        cityList.append(cityname.strip())
+                        name = results[i].text.strip()
+                        nameList.append(name.strip())
                 else:
                     cityList.append(cityname)
                     nameList.append('此補習班資料不完整，或為網站的測試資料')
             if(i % 7 == 2):            
                 if(results[i].text.strip() != ''):
-                    title = results[i].text            
-                    addressList.append(title)       
+                    title = results[i].text.strip()            
+                    addressList.append(title.strip())       
                 else:
                     addressList.append('')
             if(i % 7 == 5):
                 if(results[i].text.strip() != ''):
-                    createtime = results[i].text
-                    createtimeList.append(createtime)         
+                    createtime = results[i].text.strip()
+                    createtimeList.append(createtime.strip())         
                 else:
                     createtimeList.append('')         
             if(i % 7 == 6):
@@ -67,23 +67,23 @@ def get_president_and_contactphone(article_url):
     results = bs.select('tr > td.listBody')
     if(results and results[1].text.strip() != 'null'): 
         if(results[0].text.strip() != ''):
-            idList.append(results[0].text)                 #補習班代碼
+            idList.append(results[0].text.strip())                 #補習班代碼
         else:
             idList.append('')
         if(results[7].text.strip() != ''):
-            contactPhoneList.append(results[7].text)       #電話
+            contactPhoneList.append(results[7].text.strip())       #電話
         else:
             contactPhoneList.append('')
         if(results[24].text.strip() != ''):
-            presidentList.append(results[24].text)         #24:負責人 25:設立人 26:班主任
+            presidentList.append(results[24].text.strip())         #24:負責人 25:設立人 26:班主任
         else:
             presidentList.append('')
         if(results[26].text.strip() != ''):
-            supervisorList.append(results[26].text)
+            supervisorList.append(results[26].text.strip())
         else:
             supervisorList.append('')
         if(len(results[16].select("a")) > 0):
-            emailList.append(results[16].select("a")[0].text)
+            emailList.append(results[16].select("a")[0].text.strip())
         else:
             emailList.append('')
     else:       #假設'主管機關文件單位代碼'是空的
@@ -97,25 +97,36 @@ req = requests.get(url)
 bs = BeautifulSoup(req.text,"lxml") 
 cityCount = 22
 citytempcount = 0
-totalHref = bs.select('td.statisticBody > a')       #合計超連結
+citynametemplist = bs.find_all('td',{'class':'statisticCenter'}) #[cityCount].text 
+totalHref = bs.select('td.statisticBody > a')       #不取合計超連結
 tagLen = len(totalHref)
-for pageUrl in range(tagLen - 1):                    #不取最後總計的超連結
-    if(pageUrl % 15 == 14):
-        up_page_href = totalHref[pageUrl]['href']  
-        next_page_url = hrefUrl + up_page_href
-        url = next_page_url + "&range=1"          #range=1是讓頁面的共..筆顯示正常
-        pageCount = get_page_num(url = url)
-        citynametemplist = bs.find_all('td',{'class':'statisticCenter'}) #[cityCount].text 
+for pageUrl in range(tagLen - 1):                    #不取最後總計的超連結    
+    if(pageUrl % 15 != 14):
+        hrefnum = int(totalHref[pageUrl].text.strip())                
         if(citytempcount < 22):     # 共22個縣市
-            cityname = citynametemplist[citytempcount].text
-            citytempcount = citytempcount + 1
-        if pageCount > 0:    
-            for pageNum in range(1, pageCount + 1):                
-                print("目前正在撈取 " + cityname +" 第 " + str(pageNum) + " 頁，共有 " + str(pageCount) + " 頁")
-                get_layer2_data_layer3_url(url = url, cityname = cityname)
-                if(len(cityList) != len(nameList) and len(cityList) != len(createtimeList) and len(cityList) != len(addressList) and len(cityList) != len(contactPhoneList) and len(cityList)!= len(presidentList) and len(cityList)!= len(supervisorList) and (len(cityList) != len(emailList))):
-                     sys.exit("陣列的數量已經不一致")
-                url = url.replace("pageno=" + str(pageNum) , "pageno=" + str(pageNum +1))      
+            cityname = citynametemplist[citytempcount].text.strip()
+        if(hrefnum > 0):
+            up_page_href = totalHref[pageUrl]['href']  
+            next_page_url = hrefUrl + up_page_href
+            url = next_page_url + "&range=1"          #range=1是讓頁面的共..筆顯示正常
+            pageCount = get_page_num(url = url)                            
+            if pageCount > 0:
+                if(pageCount > 99): #該網頁無法查大於100頁的資料
+                    for pageNum in range(1, 100):                
+                        print("目前正在撈取 " + cityname +" 第 " + str(pageNum) + " 頁，共有 " + str(pageCount) + " 頁")
+                        get_layer2_data_layer3_url(url = url, cityname = cityname)
+                        if(len(cityList) != len(nameList) and len(cityList) != len(createtimeList) and len(cityList) != len(addressList) and len(cityList) != len(contactPhoneList) and len(cityList)!= len(presidentList) and len(cityList)!= len(supervisorList) and (len(cityList) != len(emailList))):
+                            sys.exit("陣列的數量已經不一致")
+                        url = url.replace("pageno=" + str(pageNum) , "pageno=" + str(pageNum +1))      
+                elif(pageCount <= 99):
+                    for pageNum in range(1, pageCount + 1):                
+                        print("目前正在撈取 " + cityname +" 第 " + str(pageNum) + " 頁，共有 " + str(pageCount) + " 頁")
+                        get_layer2_data_layer3_url(url = url, cityname = cityname)
+                        if(len(cityList) != len(nameList) and len(cityList) != len(createtimeList) and len(cityList) != len(addressList) and len(cityList) != len(contactPhoneList) and len(cityList)!= len(presidentList) and len(cityList)!= len(supervisorList) and (len(cityList) != len(emailList))):
+                            sys.exit("陣列的數量已經不一致")
+                        url = url.replace("pageno=" + str(pageNum) , "pageno=" + str(pageNum +1))            
+    elif(pageUrl % 15 == 14):        
+        citytempcount = citytempcount + 1
 
 from yattag import Doc
 from yattag import indent
