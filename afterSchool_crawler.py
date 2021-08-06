@@ -113,7 +113,7 @@ for pageUrl in range(tagLen - 1):                    #不取最後總計的超�
             if pageCount > 0:
                 if(pageCount > 99): #該網頁無法查大於100頁的資料
                     for pageNum in range(1, 100):                
-                        print("目前正在撈取 " + cityname +" 第 " + str(pageNum) + " 頁，共有 " + str(pageCount) + " 頁")
+                        print("目前正在撈取 " + cityname +" 第 " + str(pageNum) + " 頁，共有 " + str(pageCount) + " 頁(此頁面只能查到第99頁)")
                         get_layer2_data_layer3_url(url = url, cityname = cityname)
                         if(len(cityList) != len(nameList) and len(cityList) != len(createtimeList) and len(cityList) != len(addressList) and len(cityList) != len(contactPhoneList) and len(cityList)!= len(presidentList) and len(cityList)!= len(supervisorList) and (len(cityList) != len(emailList))):
                             sys.exit("陣列的數量已經不一致")
